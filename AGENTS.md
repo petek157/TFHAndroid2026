@@ -10,6 +10,9 @@ Android-specific steps in plain words when you hand work back.
   calls it makes.
 - `../TFHReact2024`: the web app and the API/auth backend (SST v3). Its `dev` branch deploys the
   dev stage (`devapi.topflighthealth.co`).
+- iOS files keep some retired UI inside `/* ... */` blocks (for example the old Current Weight
+  row in ProfileView). Check for those before porting a screen, and compare with a screenshot
+  from Peter when in doubt.
 - Don't change the sibling repos as part of Android work unless the task says so. Backend changes
   go on their own branch in TFHReact2024.
 

@@ -102,7 +102,7 @@ private fun MainTabs(state: AppState, onSignOut: () -> Unit) {
     ) { padding ->
         val modifier = Modifier.padding(padding)
         when (selected) {
-            Tab.Profile -> ProfileTab(state, onSignOut, onOpenWeightChart = { showWeightChart = true }, modifier = modifier)
+            Tab.Profile -> ProfileTab(state, onSignOut, modifier = modifier)
             Tab.Messages -> ComingSoonScreen("Messages", "phase 6", modifier)
             Tab.Dashboard -> ComingSoonScreen("Dashboard", "phase 2", modifier)
             Tab.Nutrition -> ComingSoonScreen("Nutrition", "phase 3", modifier)

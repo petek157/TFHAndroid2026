@@ -3,6 +3,24 @@ package co.topflighthealth.app.ui.profile
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.sp
+import co.topflighthealth.app.ui.theme.BlueMain
+import co.topflighthealth.app.ui.theme.RedSecondary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -68,53 +86,89 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-private enum class ProfileSection(val label: String) { Profile("Profile"), About("About"), Membership("Membership") }
+private enum class ProfileSection(val title: String) { Profile("Profile"), About("About"), Plan("Plan") }
 
 private val ACTIVITY_LEVELS = listOf("Sedentary", "Active", "Very Active")
+private val SEXES = listOf("Male", "Female")
 private val WRIST_SIZES = generateSequence(4.0) { it + 0.125 }.takeWhile { it <= 12.0 }.toList()
 
 /**
- * The Profile tab: Profile, About and Membership, like the header icons on
- * iOS ProfileView. Free users only see this tab.
+ * The Profile tab, laid out like iOS ProfileView: the title names the section,
+ * and the colored quick-action buttons on the right switch between Profile,
+ * About and Plan, or sign out. Free users only see this tab.
  */
 @Composable
 fun ProfileTab(
     app: AppState,
     onSignOut: () -> Unit,
-    onOpenWeightChart: () -> Unit,
     modifier: Modifier = Modifier,
     vm: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     var section by rememberSaveable { mutableStateOf(ProfileSection.Profile) }
+    // Plan is hidden for admins, as on iOS.
+    val showPlan = !app.isAdmin
+    if (section == ProfileSection.Plan && !showPlan) section = ProfileSection.Profile
     // iOS saves when you leave the profile; do the same.
     DisposableEffect(Unit) { onDispose { vm.saveNow() } }
 
     Column(modifier.fillMaxSize()) {
-        Text(
-            state.profile?.displayName ?: "Profile",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
-        )
-        PrimaryTabRow(selectedTabIndex = section.ordinal) {
-            ProfileSection.entries.forEach {
-                Tab(selected = it == section, onClick = { section = it }, text = { Text(it.label) })
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(section.title, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickAction(Icons.Filled.Person, "Profile", BlueMain, section == ProfileSection.Profile) { section = ProfileSection.Profile }
+                QuickAction(Icons.Outlined.Info, "About", Color(0xFFAF52DE), section == ProfileSection.About) { section = ProfileSection.About }
+                if (showPlan) {
+                    QuickAction(Icons.Outlined.StarOutline, "Plan", Color(0xFFFF9500), section == ProfileSection.Plan) { section = ProfileSection.Plan }
+                }
+                QuickAction(Icons.AutoMirrored.Filled.Logout, "Sign out", Color(0xFFFF3B30), selected = false) { vm.saveNow(); onSignOut() }
             }
         }
         when (section) {
-            ProfileSection.Profile -> ProfileForm(state, vm, onOpenWeightChart, onSignOut)
+            ProfileSection.Profile -> ProfileForm(state, vm, onActivityHelp = { section = ProfileSection.About })
             ProfileSection.About -> AboutSection()
-            ProfileSection.Membership -> MembershipSection(app)
+            ProfileSection.Plan -> MembershipSection(app)
+        }
+    }
+}
+
+/** A 32 dp colored square with a white icon; the active one gets a half-opacity ring and a dimmed icon (iOS headerIcon). */
+@Composable
+private fun QuickAction(icon: ImageVector, label: String, color: Color, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(38.dp)
+            .border(2.dp, if (selected) color.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(10.dp))
+            .padding(3.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(color)
+            .clickable(onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = label, tint = Color.White.copy(alpha = if (selected) 0.6f else 1f), modifier = Modifier.size(18.dp))
+    }
+}
+
+/** The red pill segmented control used across the iOS app (CustomSegmentedControl). */
+@Composable
+fun PillSegments(options: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(RedSecondary.copy(alpha = 0.35f))) {
+        options.forEach { o ->
+            val on = o == selected
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (on) RedMain else Color.Transparent)
+                    .clickable { onSelect(o) }.padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(o, color = if (on) Color.White else RedMain, fontSize = 17.sp, maxLines = 1) }
         }
     }
 }
 
 @Composable
-private fun ProfileForm(state: ProfileUiState, vm: ProfileViewModel, onOpenWeightChart: () -> Unit, onSignOut: () -> Unit) {
+private fun ProfileForm(state: ProfileUiState, vm: ProfileViewModel, onActivityHelp: () -> Unit) {
     val p = state.profile
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (p == null) {
@@ -126,33 +180,33 @@ private fun ProfileForm(state: ProfileUiState, vm: ProfileViewModel, onOpenWeigh
             OutlinedTextField(p.lastname.orEmpty(), vm::setLastName, label = { Text("Last Name") }, singleLine = true, modifier = Modifier.weight(1f))
         }
         OutlinedTextField(
-            p.phone.orEmpty(), vm::setPhone, label = { Text("Phone") }, singleLine = true,
+            p.phone.orEmpty(), vm::setPhone, label = { Text("Phone") }, placeholder = { Text("Phone number") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
         )
-        BirthdayRow(p.birthday, vm::setBirthday)
-        HeightRow(p.feet, p.inches, vm::setHeight)
-        HorizontalDivider()
-        CurrentWeightRow(state, onOpenWeightChart, vm)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text("Birthday", fontWeight = FontWeight.Bold)
+                BirthdayButton(p.birthday, vm::setBirthday)
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Height", fontWeight = FontWeight.Bold)
+                HeightButton(p.feet, p.inches, vm::setHeight)
+            }
+        }
+        PillSegments(SEXES, p.sex ?: "Male", vm::setSex)
         GoalWeightRow(p, vm::setGoalWeight)
         Column {
-            Text("Activity Level", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                ACTIVITY_LEVELS.forEachIndexed { i, level ->
-                    SegmentedButton(
-                        selected = (p.activityLevel ?: "Sedentary") == level,
-                        onClick = { vm.setActivityLevel(level) },
-                        shape = SegmentedButtonDefaults.itemShape(i, ACTIVITY_LEVELS.size),
-                    ) { Text(level, maxLines = 1) }
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Activity Level", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                IconButton(onClick = onActivityHelp) { Icon(Icons.AutoMirrored.Outlined.HelpOutline, "What do these mean?") }
             }
+            PillSegments(ACTIVITY_LEVELS, p.activityLevel ?: "Sedentary", vm::setActivityLevel)
         }
         WaterGoalRow(p.waterGoal, vm::setWaterGoal)
         WristRow(p.wristCircumference, vm::setWrist)
 
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (state.saving) Text("Saving…", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = { vm.saveNow(); onSignOut() }, modifier = Modifier.fillMaxWidth()) { Text("Sign Out") }
         if (BuildConfig.ENV != "prod") {
             Text("Dev build · ${BuildConfig.API_BASE_URL}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -161,9 +215,11 @@ private fun ProfileForm(state: ProfileUiState, vm: ProfileViewModel, onOpenWeigh
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BirthdayRow(birthday: LocalDate?, onPick: (LocalDate) -> Unit) {
+private fun BirthdayButton(birthday: LocalDate?, onPick: (LocalDate) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    LabeledRow("Birthday", birthday?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: "Not set") { open = true }
+    FilledTonalButton(onClick = { open = true }, modifier = Modifier.padding(top = 6.dp)) {
+        Text(birthday?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: "Set birthday")
+    }
     if (open) {
         // The Material date picker works in UTC days, so convert both ways in UTC.
         val picker = rememberDatePickerState(
@@ -182,12 +238,28 @@ private fun BirthdayRow(birthday: LocalDate?, onPick: (LocalDate) -> Unit) {
     }
 }
 
+/** Shows 5' 7" and opens a feet/inches picker, like the iOS height sheet. */
 @Composable
-private fun HeightRow(feet: Int?, inches: Int?, onChange: (Int, Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Height", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        NumberDropdown("ft", feet ?: 5, (3..7).toList()) { onChange(it, inches ?: 0) }
-        NumberDropdown("in", inches ?: 0, (0..11).toList()) { onChange(feet ?: 5, it) }
+private fun HeightButton(feet: Int?, inches: Int?, onChange: (Int, Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Text(if (feet != null) "$feet' ${inches ?: 0}\"" else "Set height", modifier = Modifier.fillMaxWidth())
+    }
+    if (open) {
+        var f by remember { mutableStateOf(feet ?: 5) }
+        var i by remember { mutableStateOf(inches ?: 0) }
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text("Select Height") },
+            text = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NumberDropdown("ft", f, (3..7).toList()) { f = it }
+                    NumberDropdown("in", i, (0..11).toList()) { i = it }
+                }
+            },
+            confirmButton = { TextButton(onClick = { onChange(f, i); open = false }) { Text("Done") } },
+            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -211,30 +283,6 @@ private fun <T> Dropdown(label: String, value: T, options: List<T>, format: (T) 
 @Composable
 private fun NumberDropdown(label: String, value: Int, options: List<Int>, onPick: (Int) -> Unit) =
     Dropdown(label, value, options, { it.toString() }, 96, onPick)
-
-@Composable
-private fun CurrentWeightRow(state: ProfileUiState, onOpenChart: () -> Unit, vm: ProfileViewModel) {
-    var adding by remember { mutableStateOf(false) }
-    val latest = state.weights.firstOrNull()
-    Card(Modifier.fillMaxWidth().clickable(onClick = onOpenChart)) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Current Weight", fontWeight = FontWeight.Bold)
-                when {
-                    state.weightsLoading && latest == null -> Text("Loading weight data…")
-                    latest != null -> {
-                        Text("${formatWeight(latest.weight)} lbs", style = MaterialTheme.typography.titleLarge)
-                        Text("as of ${formatDateTime(latest.date)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    else -> Text("No weight recorded. Add your first entry.")
-                }
-            }
-            IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add weight") }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Weight chart")
-        }
-    }
-    if (adding) AddWeightDialog(latest?.weight ?: state.profile?.currentWeight ?: 150.0, vm) { adding = false }
-}
 
 @Composable
 private fun GoalWeightRow(p: Profile, onChange: (Double) -> Unit) {
@@ -288,22 +336,14 @@ private fun WristRow(value: Double?, onPick: (Double) -> Unit) {
     }
 }
 
-@Composable
-private fun LabeledRow(label: String, value: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        Text(value, color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-/** 6.125 -> "6 1/8", like the iOS doubleToFraction. */
+/** 6.75 -> "6-3/4", like the iOS doubleToFraction. */
 fun fraction(v: Double): String {
     val whole = v.toInt()
     val eighths = Math.round((v - whole) * 8).toInt()
     if (eighths == 0) return "$whole"
     var n = eighths; var d = 8
     while (n % 2 == 0) { n /= 2; d /= 2 }
-    return "$whole $n/$d"
+    return "$whole-$n/$d"
 }
 
 @Composable

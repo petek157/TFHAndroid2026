@@ -76,6 +76,7 @@ class ProfileViewModel(private val users: UserRepository) : ViewModel() {
         edit("feet", Profile.value(feet))
         edit("inches", Profile.value(inches))
     }
+    fun setSex(v: String) = edit("sex", Profile.value(v))
     fun setGoalWeight(v: Double) = edit("goalWeight", Profile.value(v.coerceIn(80.0, 500.0)))
     fun setActivityLevel(v: String) = edit("activityLevel", Profile.value(v))
     fun setWaterGoal(v: Double?) = edit("waterGoal", Profile.value(v?.let { kotlin.math.max(0.0, Math.rint(it)) }))

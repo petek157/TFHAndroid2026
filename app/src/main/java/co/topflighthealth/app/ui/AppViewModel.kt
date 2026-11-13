@@ -27,9 +27,12 @@ data class AppState(
     val user: Profile? = null,
     val membership: SubscriptionStatus? = null,
     val hasMessaging: Boolean = false,
+    /** From the access token, as iOS AuthManager.getUserRole() reads it. */
+    val role: String? = null,
     val error: String? = null,
 ) {
     val isMember: Boolean get() = membership?.isMember == true
+    val isAdmin: Boolean get() = role == "admin"
 }
 
 /**
@@ -52,9 +55,10 @@ class AppViewModel(
                     users.clear()
                     _state.update { AppState(error = it.error) }
                 } else {
-                    val features = Jwt.claims(tokens.accessToken)?.properties?.membership?.features.orEmpty()
+                    val props = Jwt.claims(tokens.accessToken)?.properties
+                    val features = props?.membership?.features.orEmpty()
                     val wasSignedIn = _state.value.signedIn
-                    _state.update { it.copy(signedIn = true, hasMessaging = "messaging" in features) }
+                    _state.update { it.copy(signedIn = true, hasMessaging = "messaging" in features, role = props?.role) }
                     if (!wasSignedIn) refresh()
                 }
             }
