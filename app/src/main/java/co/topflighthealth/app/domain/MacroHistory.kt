@@ -103,4 +103,21 @@ object MacroHistory {
         if (policyChanged && nextCalc != null) rows = upsert(rows, snapshot(nextCalc, next, today))
         return rows
     }
+
+    /** The snapshot in effect on [day] (the first row also covers days before it). */
+    fun lookup(history: List<MacroHistoryEntry>, day: String): MacroHistoryEntry? {
+        if (history.isEmpty()) return null
+        val sorted = history.sortedBy { dayKey(it.effectiveFrom) }
+        return sorted.lastOrNull { dayKey(it.effectiveFrom) <= day } ?: sorted.first()
+    }
+
+    /**
+     * Goals to stamp on a new DaysMeals for [day] (iOS User.daysMealsGoals):
+     * live goals for today and later, the history snapshot for past days.
+     */
+    fun goalsForDay(history: List<MacroHistoryEntry>, live: DailyGoals?, day: java.time.LocalDate, today: java.time.LocalDate = java.time.LocalDate.now()): DailyGoals? {
+        if (day >= today) return live
+        val snap = lookup(history, day.toString()) ?: return live
+        return DailyGoals(snap.protein * 4 + snap.carbs * 4 + snap.fats * 9, snap.protein, snap.carbs, snap.fats, snap.fiber)
+    }
 }
