@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose draws the real theme (ui/theme/Theme.kt). This only covers the
+         moment before the first frame, using the iOS launch color. -->
+    <style name="Theme.TFH" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/launch</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>

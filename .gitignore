@@ -1,0 +1,19 @@
+# Gradle and build output
+.gradle/
+.kotlin/
+build/
+/captures/
+*.apk
+*.aab
+
+# Machine-specific settings
+local.properties
+*.iml
+.idea/
+.DS_Store
+
+# Signing keys and secrets never go in the repo
+*.jks
+*.keystore
+keystore.properties
+google-services.json
