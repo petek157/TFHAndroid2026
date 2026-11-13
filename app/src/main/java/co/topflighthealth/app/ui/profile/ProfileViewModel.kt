@@ -46,15 +46,11 @@ class ProfileViewModel(private val users: UserRepository) : ViewModel() {
             s.copy(profile = p?.with(edits), weights = w)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileUiState())
 
-    init {
-        loadWeights()
-    }
-
     fun loadWeights() {
         viewModelScope.launch {
             status.value = status.value.copy(weightsLoading = true)
+            // Quiet on failure: the dashboard and weight page show what they have.
             runCatching { users.loadWeights() }
-                .onFailure { status.value = status.value.copy(error = "Couldn't load weight entries.") }
             status.value = status.value.copy(weightsLoading = false)
         }
     }
@@ -77,6 +73,8 @@ class ProfileViewModel(private val users: UserRepository) : ViewModel() {
         edit("inches", Profile.value(inches))
     }
     fun setSex(v: String) = edit("sex", Profile.value(v))
+    fun setObjective(v: String) = edit("objective", Profile.value(v))
+    fun setBalanceOfCalories(v: String) = edit("balanceOfCalories", Profile.value(v))
     fun setGoalWeight(v: Double) = edit("goalWeight", Profile.value(v.coerceIn(80.0, 500.0)))
     fun setActivityLevel(v: String) = edit("activityLevel", Profile.value(v))
     fun setWaterGoal(v: Double?) = edit("waterGoal", Profile.value(v?.let { kotlin.math.max(0.0, Math.rint(it)) }))

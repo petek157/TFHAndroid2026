@@ -102,6 +102,7 @@ fun WeightChartScreen(onBack: () -> Unit, vm: ProfileViewModel = viewModel(facto
     var range by remember { mutableStateOf(Range.Month) }
     var adding by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<WeightEntry?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadWeights() }
 
     Scaffold(
         topBar = {

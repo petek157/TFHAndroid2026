@@ -341,7 +341,7 @@ private fun TodaysHealth(meals: List<Meal>, notes: List<Note>, day: LocalDate, o
 
 /** "Water: 40 of 80oz" bar with a plus button (iOS WaterIntakeControl). */
 @Composable
-private fun WaterBar(amount: Double, goal: Double, saving: Boolean, onAdd: () -> Unit) {
+fun WaterBar(amount: Double, goal: Double, saving: Boolean, onAdd: () -> Unit) {
     val blue = Color(0xFF007AFF)
     val g = if (goal > 0) goal else 80.0
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -377,7 +377,7 @@ private fun WeightMini(points: List<Pair<Instant, Double>>, goal: Double?) {
 }
 
 @Composable
-private fun AddWaterDialog(onSave: (Double, (String?) -> Unit) -> Unit, onClose: () -> Unit) {
+fun AddWaterDialog(onSave: (Double, (String?) -> Unit) -> Unit, onClose: () -> Unit) {
     var text by remember { mutableStateOf("8") }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
