@@ -29,7 +29,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.topflighthealth.app.ui.screens.ComingSoonScreen
-import co.topflighthealth.app.ui.screens.ProfileScreen
+import co.topflighthealth.app.ui.profile.ProfileTab
+import co.topflighthealth.app.ui.profile.WeightChartScreen
+import androidx.activity.compose.BackHandler
 import co.topflighthealth.app.ui.screens.SignInScreen
 
 /** Tabs in the same order as the iOS tab bar (Dashboard sits in the middle there too). */
@@ -74,6 +76,13 @@ private fun MainTabs(state: AppState, onSignOut: () -> Unit) {
     }
     var selected by rememberSaveable { mutableStateOf(if (state.isMember) Tab.Dashboard else Tab.Profile) }
     if (selected !in tabs) selected = tabs.first()
+    var showWeightChart by rememberSaveable { mutableStateOf(false) }
+
+    if (showWeightChart) {
+        BackHandler { showWeightChart = false }
+        WeightChartScreen(onBack = { showWeightChart = false })
+        return
+    }
 
     Scaffold(
         bottomBar = {
@@ -93,7 +102,7 @@ private fun MainTabs(state: AppState, onSignOut: () -> Unit) {
     ) { padding ->
         val modifier = Modifier.padding(padding)
         when (selected) {
-            Tab.Profile -> ProfileScreen(state, onSignOut, modifier)
+            Tab.Profile -> ProfileTab(state, onSignOut, modifier = modifier)
             Tab.Messages -> ComingSoonScreen("Messages", "phase 6", modifier)
             Tab.Dashboard -> ComingSoonScreen("Dashboard", "phase 2", modifier)
             Tab.Nutrition -> ComingSoonScreen("Nutrition", "phase 3", modifier)
