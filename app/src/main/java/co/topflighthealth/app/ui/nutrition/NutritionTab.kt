@@ -46,15 +46,17 @@ fun NutritionTab(profile: Profile?, modifier: Modifier = Modifier) {
     val showPantry = profile?.macroTracking == true
     if (section == NutritionSection.Pantry && !showPantry) section = NutritionSection.Journal
 
+    var inMealFlow by rememberSaveable { mutableStateOf(false) }
     Column(modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        // The add/edit meal pages take the whole tab, like the iOS full-screen cover.
+        if (!inMealFlow) Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             NavButton(Icons.Outlined.Eco, "Macros", Color(0xFF34C759), section == NutritionSection.Macros) { section = NutritionSection.Macros }
             NavButton(Icons.AutoMirrored.Outlined.MenuBook, "Journal", Color(0xFF007AFF), section == NutritionSection.Journal) { section = NutritionSection.Journal }
             if (showPantry) NavButton(Icons.Outlined.Kitchen, "Pantry", Color(0xFFFF9500), section == NutritionSection.Pantry) { section = NutritionSection.Pantry }
         }
         when (section) {
             NutritionSection.Macros -> MacrosScreen()
-            NutritionSection.Journal -> JournalScreen(showMacros = profile?.macroTracking == true)
+            NutritionSection.Journal -> JournalScreen(showMacros = profile?.macroTracking == true, onFlowActive = { inMealFlow = it })
             NutritionSection.Pantry -> ComingSoonScreen("Pantry", "phase 4")
         }
     }

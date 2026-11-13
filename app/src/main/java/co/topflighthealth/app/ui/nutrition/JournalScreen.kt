@@ -56,6 +56,8 @@ import co.topflighthealth.app.domain.MacroDayStatus
 import co.topflighthealth.app.domain.MacroDayStatus.Badge
 import co.topflighthealth.app.domain.MacroSafeFloors
 import co.topflighthealth.app.domain.macroInt
+import co.topflighthealth.app.domain.MacroNutrition
+import co.topflighthealth.app.api.FoodItem
 import co.topflighthealth.app.ui.dashboard.AddWaterDialog
 import co.topflighthealth.app.ui.dashboard.WaterBar
 import java.time.LocalDate
@@ -75,20 +77,62 @@ object MacroColors {
 
 /** The Journal page (iOS FoodJournalView). */
 @Composable
-fun JournalScreen(showMacros: Boolean, vm: JournalViewModel = viewModel(factory = JournalViewModel.Factory)) {
+fun JournalScreen(
+    showMacros: Boolean,
+    onFlowActive: (Boolean) -> Unit = {},
+    vm: JournalViewModel = viewModel(factory = JournalViewModel.Factory),
+    flowVm: MealFlowViewModel = viewModel(factory = MealFlowViewModel.Factory),
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by vm.profile.collectAsStateWithLifecycle()
+    val flow by flowVm.state.collectAsStateWithLifecycle()
     var addWater by remember { mutableStateOf(false) }
-    var openMeal by remember { mutableStateOf<Meal?>(null) }
-    var comingSoon by remember { mutableStateOf(false) }
     var help by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf<MealPage?>(null) }
+
+    androidx.compose.runtime.LaunchedEffect(page != null) { onFlowActive(page != null) }
+    val floors = MacroSafeFloors.from(profile?.goalWeight, profile?.sex)
+    val remaining = if (showMacros) remainingFor(state, MacroNutrition.ZERO, floors) else null
+    fun startAdd() {
+        flowVm.startNew(state.selectedDay, state.day?.meals?.size ?: 0)
+        // iOS: macro tracking starts at the food search; otherwise straight to the meal form.
+        page = if (showMacros) MealPage.Search else MealPage.Review
+    }
+    fun finish(savedDay: java.time.LocalDate?) {
+        page = null
+        if (savedDay != null && savedDay != state.selectedDay) vm.selectDay(savedDay) else vm.load()
+    }
+
+    when (val pg = page) {
+        null -> Unit
+        MealPage.Search -> return AddFoodScreen(
+            flow, remaining, flowVm::setQuery,
+            onPickFood = { page = MealPage.Amount(it) },
+            onPickUsda = { u -> flowVm.resolveUsda(u) { page = MealPage.Amount(it) } },
+            onCustom = { page = MealPage.Custom }, onRecents = { page = MealPage.Recents },
+            onReview = { page = MealPage.Review }, onCancel = { page = if (flow.draft.original != null) MealPage.Review else null },
+        )
+        is MealPage.Amount -> return AmountScreen(pg.food, remaining, flow.draft.nutrition,
+            onAdd = { flowVm.addItem(it); page = MealPage.Search }, onBack = { page = MealPage.Search })
+        MealPage.Custom -> return CustomFoodScreen(flow.query, profile?.id.orEmpty(),
+            onAdd = { item, food -> flowVm.addItem(item); flowVm.saveCustomFoodToPantry(food) }, onBack = { page = MealPage.Search })
+        MealPage.Recents -> return RecentMealsScreen(flow, flowVm::loadRecent,
+            onPick = { flowVm.useRecent(it); page = MealPage.Review }, onBack = { page = MealPage.Search })
+        MealPage.Review -> return MealReviewScreen(
+            flow, flowVm::updateDraft, flowVm::replaceItem, flowVm::removeItem,
+            onAddMore = { page = MealPage.Search },
+            onSave = { flowVm.save(state.day) { day -> if (day != null) finish(day) } },
+            onDelete = if (flow.draft.original != null) ({ flowVm.delete(state.day) { ok -> if (ok) finish(null) } }) else null,
+            onCancel = { page = null },
+        )
+    }
 
     Column(Modifier.fillMaxSize()) {
         HorizontalDivider()
         DayBar(state.selectedDay, vm::selectDay)
         if (showMacros) {
             val bank = state.weekBank
-            val snap = state.day?.let { DayMacroSnapshot.build(it, bank, MacroSafeFloors.from(profile?.goalWeight, profile?.sex)) }
+            val snap = state.day?.let { DayMacroSnapshot.build(it, bank, floors) }
             MacroSection(snap, bank, state.day == null) { help = true }
         }
         Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -104,15 +148,15 @@ fun JournalScreen(showMacros: Boolean, vm: JournalViewModel = viewModel(factory 
                     Text("No meals for ${state.selectedDay.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))}", style = MaterialTheme.typography.titleMedium)
                     Text("Tap the + button to add your first meal!", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(16.dp))
-                    TextButton(onClick = { comingSoon = true }) { Text("+ Add Entry") }
+                    TextButton(onClick = { startAdd() }) { Text("+ Add Entry") }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             } else {
                 LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item { Spacer(Modifier.height(4.dp)) }
-                    items(meals, key = { it.id }) { m -> MealRow(m, showMacros) { openMeal = m } }
+                    items(meals, key = { it.id }) { m -> MealRow(m, showMacros) { flowVm.startEdit(m); page = MealPage.Review } }
                     item {
-                        TextButton(onClick = { comingSoon = true }, modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { startAdd() }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Filled.AddCircle, null); Spacer(Modifier.width(6.dp)); Text("Add Meal")
                         }
                     }
@@ -122,30 +166,7 @@ fun JournalScreen(showMacros: Boolean, vm: JournalViewModel = viewModel(factory 
     }
 
     if (addWater) AddWaterDialog(onSave = { oz, done -> vm.addWater(oz, done) }) { addWater = false }
-    if (comingSoon) AlertDialog(
-        onDismissRequest = { comingSoon = false },
-        title = { Text("Adding meals") },
-        text = { Text("Adding and editing meals is the next step (phase 3b).") },
-        confirmButton = { TextButton(onClick = { comingSoon = false }) { Text("OK") } },
-    )
     if (help) JournalMacroHelp { help = false }
-    openMeal?.let { m ->
-        AlertDialog(
-            onDismissRequest = { openMeal = null },
-            title = { Text(m.name ?: "Meal") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    m.mealItems.forEach { i ->
-                        val n = i.nutrition
-                        Text("${i.name} · ${macroInt(n.calories)} cal", fontWeight = FontWeight.Medium)
-                        Text("P ${macroInt(n.protein)} · C ${macroInt(n.carbs)} · F ${macroInt(n.fats)}", style = MaterialTheme.typography.bodySmall)
-                    }
-                    m.notes?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                }
-            },
-            confirmButton = { TextButton(onClick = { openMeal = null }) { Text("Close") } },
-        )
-    }
 }
 
 @Composable
@@ -288,4 +309,13 @@ private fun JournalMacroHelp(onClose: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Got it") } },
     )
+}
+
+/** Pages of the add/edit meal flow, shown in place of the Journal. */
+sealed interface MealPage {
+    data object Search : MealPage
+    data class Amount(val food: FoodItem) : MealPage
+    data object Custom : MealPage
+    data object Recents : MealPage
+    data object Review : MealPage
 }
