@@ -9,6 +9,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * The TFH API (TFHReact2024, SST; routes in infra/api.ts). Paths are relative
@@ -46,6 +47,46 @@ interface TfhApi {
 
     @DELETE("weight-entries/{id}")
     suspend fun deleteWeightEntry(@Path("id") id: String): JsonElement
+
+    /** One day's meals, or JSON null if the day has no document yet. Range is that local day, as ISO instants. */
+    @GET("daysmeals")
+    suspend fun daysMeals(
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String,
+        @Query("userObjectId") userObjectId: String,
+    ): JsonElement
+
+    /** Every day document in [startDate, endDate). */
+    @GET("daysmeals/range")
+    suspend fun daysMealsRange(
+        @Query("startDate") startDate: String,
+        @Query("endDate") endDate: String,
+        @Query("userObjectId") userObjectId: String,
+    ): List<DaysMeals>
+
+    @POST("daysmeals")
+    suspend fun createDaysMeals(@Body body: NewDaysMeals): DaysMeals
+
+    @PUT("daysmeals/{id}/water")
+    suspend fun setWater(@Path("id") id: String, @Body body: WaterUpdate): JsonElement
+
+    @GET("notes/user/{userId}")
+    suspend fun notes(@Path("userId") userId: String): List<Note>
+
+    @POST("notes")
+    suspend fun addNote(@Body note: NewNote): JsonElement
+
+    @PUT("notes/{id}")
+    suspend fun updateNote(@Path("id") id: String, @Body note: Note): JsonElement
+
+    @DELETE("notes/{id}")
+    suspend fun deleteNote(@Path("id") id: String): JsonElement
+
+    @GET("reminder-occurrences/user/{userId}")
+    suspend fun reminderOccurrences(@Path("userId") userId: String, @Query("status") status: String = "pending"): List<ReminderOccurrence>
+
+    @POST("reminder-occurrences/{id}/complete")
+    suspend fun completeReminder(@Path("id") id: String): JsonElement
 
     /** Rewrites today's and future DaysMeals goals after the plan changes, as iOS and web do. */
     @PUT("daysMeals/batch-update-goals")
@@ -87,4 +128,40 @@ data class GoalsUpdate(
     val goalCarbs: Double,
     val goalFats: Double,
     val goalFiber: Double,
+)
+
+@Serializable
+data class NewDaysMeals(
+    val date: String,
+    val userObjectId: String,
+    val meals: List<Meal> = emptyList(),
+    val goalCalories: Double,
+    val goalProtein: Double,
+    val goalCarbs: Double,
+    val goalFats: Double,
+    val goalFiber: Double,
+)
+
+/** A dashboard note (iOS Note). Categories match NoteCategory raw values. */
+@Serializable
+data class Note(
+    @kotlinx.serialization.SerialName("_id") val id: String,
+    val userObjectId: String,
+    val date: String,
+    val text: String,
+    val category: String = "general",
+)
+
+@Serializable
+data class NewNote(val userObjectId: String, val date: String, val text: String, val category: String)
+
+@Serializable
+data class ReminderOccurrence(
+    @kotlinx.serialization.SerialName("_id") val id: String,
+    val reminderId: String = "",
+    val userObjectId: String = "",
+    val scheduledFor: String,
+    val status: String = "pending",
+    val title: String = "",
+    val body: String = "",
 )

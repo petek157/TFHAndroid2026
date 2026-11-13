@@ -58,6 +58,14 @@ class Profile(val raw: JsonObject) {
             runCatching { ApiFactory.json.decodeFromJsonElement(ListSerializer(MacroHistoryEntry.serializer()), it) }.getOrNull()
         }.orEmpty()
 
+    /** Coach/user goal, else 0.033 L per kg of current weight, else 80 oz (iOS User.effectiveWaterGoal). */
+    val effectiveWaterGoal: Double
+        get() {
+            waterGoal?.takeIf { it > 0 }?.let { return it }
+            currentWeight?.takeIf { it > 0 }?.let { return it * 0.453592 * 0.033 * 33.814 }
+            return 80.0
+        }
+
     val displayName: String
         get() = listOfNotNull(firstname, lastname).joinToString(" ").ifBlank { email }
 

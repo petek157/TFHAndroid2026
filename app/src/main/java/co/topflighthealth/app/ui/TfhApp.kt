@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.topflighthealth.app.ui.screens.ComingSoonScreen
 import co.topflighthealth.app.ui.profile.ProfileTab
+import co.topflighthealth.app.ui.dashboard.DashboardScreen
 import co.topflighthealth.app.ui.profile.WeightChartScreen
 import androidx.activity.compose.BackHandler
 import co.topflighthealth.app.ui.screens.SignInScreen
@@ -104,7 +105,7 @@ private fun MainTabs(state: AppState, onSignOut: () -> Unit) {
         when (selected) {
             Tab.Profile -> ProfileTab(state, onSignOut, modifier = modifier)
             Tab.Messages -> ComingSoonScreen("Messages", "phase 6", modifier)
-            Tab.Dashboard -> ComingSoonScreen("Dashboard", "phase 2", modifier)
+            Tab.Dashboard -> DashboardScreen(onOpenWeightChart = { showWeightChart = true }, modifier = modifier)
             Tab.Nutrition -> ComingSoonScreen("Nutrition", "phase 3", modifier)
         }
     }
