@@ -56,6 +56,16 @@ Java comes from Android Studio (`JAVA_HOME` points at its bundled JBR in `~/.zsh
 
 ## Testing on this Mac
 
-Peter's Mac is a 2019 Intel MacBook Pro. The API 37 emulator falls back to software graphics
-there and overloads the machine, so prefer a real phone over USB. If an emulator is needed, use
-an older system image (API 34 or 35) that can use the GPU.
+Peter's Mac is a 2019 Intel MacBook Pro with 6 cores. Use the `Pixel_API_35` emulator (Android 15),
+started with software graphics; it boots in about 2 minutes:
+
+```bash
+$ANDROID_HOME/emulator/emulator -avd Pixel_API_35 -no-boot-anim -no-audio -gpu swiftshader_indirect
+```
+
+The API 37 emulator and `-gpu host` both stall at boot on this Mac. Quit the iOS Simulator first:
+its `mediaanalysisd` process can take most of the CPU and stall the emulator. A real phone over
+USB is faster still.
+
+The dev build signs in against Peter's `sst dev` session of TFHReact2024, so that has to be
+running.
