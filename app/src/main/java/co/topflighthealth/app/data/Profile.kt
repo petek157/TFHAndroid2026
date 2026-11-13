@@ -43,6 +43,8 @@ class Profile(val raw: JsonObject) {
     val carbMultiplier: Double? get() = num("carbMultiplier")
     val wristCircumference: Double? get() = num("wristCircumference")
     val waterGoal: Double? get() = num("waterGoal")
+    val macroTracking: Boolean
+        get() = (raw["macroTracking"] as? JsonPrimitive)?.booleanOrNull ?: false
     val useTargetWeightForGoal: Boolean
         get() = (raw["useTargetWeightForGoal"] as? JsonPrimitive)?.booleanOrNull ?: false
 

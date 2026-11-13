@@ -151,15 +151,18 @@ private fun QuickAction(icon: ImageVector, label: String, color: Color, selected
 
 /** The red pill segmented control used across the iOS app (CustomSegmentedControl). */
 @Composable
-fun PillSegments(options: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(RedSecondary.copy(alpha = 0.35f))) {
+fun PillSegments(
+    options: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier,
+    primary: Color = RedMain, secondary: Color = RedSecondary.copy(alpha = 0.35f),
+) {
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(secondary)) {
         options.forEach { o ->
             val on = o == selected
             Box(
-                Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (on) RedMain else Color.Transparent)
+                Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (on) primary else Color.Transparent)
                     .clickable { onSelect(o) }.padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(o, color = if (on) Color.White else RedMain, fontSize = 17.sp, maxLines = 1) }
+            ) { Text(o, color = if (on) Color.White else primary, fontSize = 17.sp, maxLines = 1) }
         }
     }
 }
