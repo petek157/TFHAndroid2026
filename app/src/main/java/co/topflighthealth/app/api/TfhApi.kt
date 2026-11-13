@@ -88,6 +88,39 @@ interface TfhApi {
     @POST("reminder-occurrences/{id}/complete")
     suspend fun completeReminder(@Path("id") id: String): JsonElement
 
+    @GET("fooditems/user/{userId}")
+    suspend fun userFoodItems(@Path("userId") userId: String): List<FoodItem>
+
+    /** The shared TFH pantry. */
+    @GET("fooditems/system")
+    suspend fun systemFoodItems(): List<FoodItem>
+
+    @POST("fooditems")
+    suspend fun createFoodItem(@Body item: FoodItem): JsonElement
+
+    @GET("usda/search")
+    suspend fun usdaSearch(@Query("query") query: String): List<USDAFood>
+
+    @GET("usda/detail/{fdcId}")
+    suspend fun usdaDetail(@Path("fdcId") fdcId: Int): USDAFoodDetail
+
+    @POST("daysmeals/quick-meal")
+    suspend fun quickMeal(@Body body: QuickMealRequest): DaysMeals
+
+    @PUT("daysmeals/{dayId}/meals/{mealId}")
+    suspend fun updateMeal(@Path("dayId") dayId: String, @Path("mealId") mealId: String, @Body meal: Meal): JsonElement
+
+    @DELETE("daysmeals/{dayId}/meals/{mealId}")
+    suspend fun deleteMeal(@Path("dayId") dayId: String, @Path("mealId") mealId: String): JsonElement
+
+    /** Most recent day documents before [beforeDate]. */
+    @GET("daysmeals/recent")
+    suspend fun recentDaysMeals(
+        @Query("beforeDate") beforeDate: String,
+        @Query("limit") limit: Int,
+        @Query("userObjectId") userObjectId: String,
+    ): List<DaysMeals>
+
     /** Rewrites today's and future DaysMeals goals after the plan changes, as iOS and web do. */
     @PUT("daysMeals/batch-update-goals")
     suspend fun updateDaysMealsGoals(@Body body: GoalsUpdate): JsonElement
